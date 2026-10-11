@@ -56,6 +56,7 @@ import com.nuvio.tv.domain.model.PosterShape
 import com.nuvio.tv.domain.model.CardDepthSurface
 import androidx.compose.ui.platform.LocalContext
 import com.nuvio.tv.ui.util.recompositionHighlighter
+import com.nuvio.tv.ui.util.LocalLowRamUiMode
 import com.nuvio.tv.ui.util.rememberLongPressKeyTracker
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
@@ -80,6 +81,7 @@ fun GridContentCard(
     onLongPress: (() -> Unit)? = null,
     onFocused: () -> Unit = {}
 ) {
+    val lowRamMode = LocalLowRamUiMode.current
     val cardShape = remember(posterCardStyle.cornerRadius) { RoundedCornerShape(posterCardStyle.cornerRadius) }
     val cardDepthStyle = LocalCardDepthStyle.current
     val density = LocalDensity.current
@@ -217,7 +219,7 @@ fun GridContentCard(
                 val imageModel = remember(effectiveImageUrl, requestWidthPx, requestHeightPx, revalidationKey) {
                     val builder = ImageRequest.Builder(context)
                         .data(effectiveImageUrl)
-                        .crossfade(imageCrossfade)
+                        .crossfade(imageCrossfade && !lowRamMode)
                         .size(width = requestWidthPx, height = requestHeightPx)
                         .memoryCacheKey("${effectiveImageUrl}_${requestWidthPx}x${requestHeightPx}_v$revalidationKey")
                     if (revalidationKey > 0) {
@@ -270,7 +272,7 @@ fun GridContentCard(
                         val logoRequest = remember(item.logo) {
                             ImageRequest.Builder(context)
                                 .data(item.logo)
-                                .crossfade(true)
+                                .crossfade(!lowRamMode)
                                 .build()
                         }
                         AsyncImage(
@@ -331,7 +333,7 @@ fun GridContentCard(
                     val logoRequest = remember(item.logo) {
                         ImageRequest.Builder(context)
                             .data(item.logo)
-                            .crossfade(true)
+                            .crossfade(!lowRamMode)
                             .build()
                     }
                     AsyncImage(

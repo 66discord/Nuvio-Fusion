@@ -28,6 +28,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -83,6 +84,7 @@ import com.nuvio.tv.ui.components.PosterCardDefaults
 import com.nuvio.tv.ui.components.PosterCardStyle
 import com.nuvio.tv.ui.components.LocalCardDepthStyle
 import com.nuvio.tv.ui.components.LocalLandscapePosterMode
+import com.nuvio.tv.ui.util.LocalLowRamUiMode
 import com.nuvio.tv.ui.components.nuvioCardDepth
 import com.nuvio.tv.domain.model.CardDepthSurface
 import com.nuvio.tv.ui.screens.home.ClassicFocusArtwork
@@ -926,17 +928,26 @@ private fun FollowLayoutContent(
     val loadMoreLabel = stringResource(R.string.action_load_more)
 
     when (uiState.homeLayout) {
-        HomeLayout.CLASSIC -> {
-            val classicPosterCardStyle = remember(posterCardStyle) {
-                val scale = 1.35f // matches CLASSIC_CATALOG_POSTER_SCALE in ClassicHomeContent
+        HomeLayout.CLASSIC, HomeLayout.APPLE_TV -> {
+            val appleTvStyle = uiState.homeLayout == HomeLayout.APPLE_TV
+            val lowRamMode = LocalLowRamUiMode.current
+            val classicPosterCardStyle = remember(posterCardStyle, appleTvStyle) {
+                val scale = if (appleTvStyle) 1.22f else 1.35f
                 posterCardStyle.copy(
                     width = posterCardStyle.width * scale,
-                    height = posterCardStyle.height * scale
+                    height = posterCardStyle.height * scale,
+                    cornerRadius = if (appleTvStyle) 16.dp else posterCardStyle.cornerRadius,
+                    focusedScale = if (appleTvStyle) {
+                        if (lowRamMode) 1.03f else 1.05f
+                    } else {
+                        posterCardStyle.focusedScale
+                    }
                 )
             }
             var focusedArtwork by remember { mutableStateOf<ClassicFocusArtwork?>(null) }
-            val classicFocusGradientEnabled = homeState.classicFocusGradientEnabled
-            val focusedPosterBackdropExpandEnabled = homeState.focusedPosterBackdropExpandEnabled
+            val classicFocusGradientEnabled = homeState.classicFocusGradientEnabled && !appleTvStyle && !lowRamMode
+            val focusedPosterBackdropExpandEnabled = homeState.focusedPosterBackdropExpandEnabled && !lowRamMode
+            val focusedPosterBackdropTrailerEnabled = homeState.focusedPosterBackdropTrailerEnabled && !lowRamMode
 
             LaunchedEffect(classicFocusGradientEnabled) {
                 if (!classicFocusGradientEnabled) {
@@ -953,29 +964,33 @@ private fun FollowLayoutContent(
                 }
             }
 
-            Box(modifier = Modifier.fillMaxSize()) {
-                ClassicFocusGradientBackdrop(
-                    artworkProvider = { focusedArtwork },
-                    enabled = classicFocusGradientEnabled,
-                    modifier = Modifier.fillMaxSize()
-                )
-                RowsContent(
-                    uiState = uiState,
-                    focusState = focusState,
-                    onNavigateToDetail = onNavigateToDetail,
-                    onLoadMoreCatalog = onLoadMoreCatalog,
-                    onSaveFocusState = onSaveFocusState,
-                    isItemWatched = isItemWatched,
-                    onItemFocus = handleItemFocus,
-                    onItemLongPress = onCatalogItemLongPress,
-                    posterCardStyle = classicPosterCardStyle,
-                    focusedPosterBackdropExpandEnabled = focusedPosterBackdropExpandEnabled,
-                    focusedPosterBackdropExpandDelaySeconds = homeState.focusedPosterBackdropExpandDelaySeconds,
-                    focusedPosterBackdropTrailerEnabled = homeState.focusedPosterBackdropTrailerEnabled,
-                    focusedPosterBackdropTrailerMuted = homeState.focusedPosterBackdropTrailerMuted,
-                    trailerPreviewUrls = trailerPreviewUrls,
-                    trailerPreviewAudioUrls = trailerPreviewAudioUrls
-                )
+            CompositionLocalProvider(
+                LocalLandscapePosterMode provides (LocalLandscapePosterMode.current || appleTvStyle)
+            ) {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    ClassicFocusGradientBackdrop(
+                        artworkProvider = { focusedArtwork },
+                        enabled = classicFocusGradientEnabled,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                    RowsContent(
+                        uiState = uiState,
+                        focusState = focusState,
+                        onNavigateToDetail = onNavigateToDetail,
+                        onLoadMoreCatalog = onLoadMoreCatalog,
+                        onSaveFocusState = onSaveFocusState,
+                        isItemWatched = isItemWatched,
+                        onItemFocus = handleItemFocus,
+                        onItemLongPress = onCatalogItemLongPress,
+                        posterCardStyle = classicPosterCardStyle,
+                        focusedPosterBackdropExpandEnabled = focusedPosterBackdropExpandEnabled,
+                        focusedPosterBackdropExpandDelaySeconds = homeState.focusedPosterBackdropExpandDelaySeconds,
+                        focusedPosterBackdropTrailerEnabled = focusedPosterBackdropTrailerEnabled,
+                        focusedPosterBackdropTrailerMuted = homeState.focusedPosterBackdropTrailerMuted,
+                        trailerPreviewUrls = trailerPreviewUrls,
+                        trailerPreviewAudioUrls = trailerPreviewAudioUrls
+                    )
+                }
             }
         }
         HomeLayout.GRID -> {

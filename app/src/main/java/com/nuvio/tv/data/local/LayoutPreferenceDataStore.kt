@@ -156,11 +156,11 @@ class LayoutPreferenceDataStore @Inject constructor(
         value?.takeIf { it > 0 } ?: defaultValue
 
     val selectedLayout: Flow<HomeLayout> = profileFlow { prefs ->
-        val layoutName = prefs[layoutKey] ?: HomeLayout.MODERN.name
+        val layoutName = prefs[layoutKey] ?: HomeLayout.APPLE_TV.name
         try {
             HomeLayout.valueOf(layoutName)
         } catch (e: IllegalArgumentException) {
-            HomeLayout.MODERN
+            HomeLayout.APPLE_TV
         }
     }
 
@@ -230,7 +230,7 @@ class LayoutPreferenceDataStore @Inject constructor(
     }
 
     val modernSidebarEnabled: Flow<Boolean> = profileFlow { prefs ->
-        prefs[modernSidebarEnabledKey] ?: prefs[legacyModernSidebarEnabledKey] ?: false
+        prefs[modernSidebarEnabledKey] ?: prefs[legacyModernSidebarEnabledKey] ?: true
     }
 
     val modernSidebarBlurEnabled: Flow<Boolean> = profileFlow { prefs ->

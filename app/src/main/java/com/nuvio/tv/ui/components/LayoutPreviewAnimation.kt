@@ -344,6 +344,86 @@ private fun DrawScope.drawModernLayoutPreview(
     }
 }
 
+/** Preview of the Apple TV-inspired layout: a featured banner, compact side rail and landscape shelves. */
+@Composable
+fun AppleTvLayoutPreview(
+    modifier: Modifier = Modifier,
+    accentColor: Color = NuvioTheme.colors.Primary
+) {
+    LayoutPreviewFrame(modifier = modifier, background = NuvioTheme.colors.Background) {
+        val w = size.width
+        val h = size.height
+        val railWidth = w * 0.09f
+        val horizontalInset = w * 0.04f
+        val heroTop = h * 0.07f
+        val heroHeight = h * 0.55f
+        val cardGap = w * 0.018f
+        val cardWidth = w * 0.17f
+        val cardHeight = h * 0.19f
+        val radius = CornerRadius(h * 0.035f)
+        val contentStart = railWidth + horizontalInset
+
+        drawRoundRect(
+            color = accentColor.copy(alpha = 0.30f),
+            topLeft = Offset(contentStart, heroTop),
+            size = Size(w - contentStart - horizontalInset, heroHeight),
+            cornerRadius = radius
+        )
+        drawRoundRect(
+            color = Color.Black.copy(alpha = 0.28f),
+            topLeft = Offset(contentStart, heroTop + heroHeight * 0.52f),
+            size = Size(w - contentStart - horizontalInset, heroHeight * 0.48f),
+            cornerRadius = CornerRadius(0f)
+        )
+        drawRoundRect(
+            color = Color.White.copy(alpha = 0.86f),
+            topLeft = Offset(contentStart + w * 0.035f, heroTop + heroHeight * 0.66f),
+            size = Size(w * 0.21f, h * 0.045f),
+            cornerRadius = CornerRadius(h * 0.02f)
+        )
+        drawRoundRect(
+            color = Color.White.copy(alpha = 0.36f),
+            topLeft = Offset(contentStart + w * 0.035f, heroTop + heroHeight * 0.77f),
+            size = Size(w * 0.31f, h * 0.025f),
+            cornerRadius = CornerRadius(h * 0.012f)
+        )
+
+        val rowTop = heroTop + heroHeight + h * 0.07f
+        for (index in 0 until 5) {
+            val x = contentStart + index * (cardWidth + cardGap)
+            drawRoundRect(
+                color = if (index == 1) accentColor.copy(alpha = 0.54f) else accentColor.copy(alpha = 0.30f),
+                topLeft = Offset(x, rowTop),
+                size = Size(cardWidth, cardHeight),
+                cornerRadius = radius
+            )
+            if (index == 1) {
+                drawRoundRect(
+                    color = Color.White.copy(alpha = 0.94f),
+                    topLeft = Offset(x - h * 0.01f, rowTop - h * 0.01f),
+                    size = Size(cardWidth + h * 0.02f, cardHeight + h * 0.02f),
+                    cornerRadius = radius,
+                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = h * 0.012f)
+                )
+            }
+        }
+
+        drawRoundRect(
+            color = Color.Black.copy(alpha = 0.32f),
+            topLeft = Offset.Zero,
+            size = Size(railWidth, h),
+            cornerRadius = CornerRadius(0f)
+        )
+        for (index in 0 until 4) {
+            drawCircle(
+                color = if (index == 0) Color.White.copy(alpha = 0.85f) else Color.White.copy(alpha = 0.30f),
+                radius = h * 0.024f,
+                center = Offset(railWidth * 0.5f, h * (0.20f + index * 0.14f))
+            )
+        }
+    }
+}
+
 /** Static landscape Continue Watching style placeholder (single card, text on art). */
 @Composable
 fun CardCwStylePreview(
