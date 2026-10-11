@@ -4,10 +4,12 @@ import android.app.ActivityManager
 import android.app.Application
 import android.content.Context
 import android.os.Build
+import android.os.StatFs
 import android.os.StrictMode
 import coil3.ImageLoader
 import coil3.SingletonImageLoader
 import com.nuvio.tv.core.image.CustomPosterFallbackInterceptor
+import com.nuvio.tv.core.performance.DevicePerformanceProfile
 import coil3.disk.DiskCache
 import coil3.memory.MemoryCache
 import coil3.gif.GifDecoder
@@ -95,10 +97,21 @@ class NuvioApplication : Application(), SingletonImageLoader.Factory {
     }
 
     override fun newImageLoader(context: android.content.Context): ImageLoader {
+        val lowRamDevice = DevicePerformanceProfile.isLowRamDevice(context)
+        val availableStorageBytes = runCatching { StatFs(context.cacheDir.absolutePath).availableBytes }
+            .getOrDefault(512L * 1024L * 1024L)
+        val configuredImageDiskCacheBytes = if (lowRamDevice) {
+            120L * 1024L * 1024L
+        } else {
+            200L * 1024L * 1024L
+        }
+        val storageBudgetBytes = (availableStorageBytes / 10L).coerceAtLeast(8L * 1024L * 1024L)
+        val maxImageDiskCacheBytes = minOf(configuredImageDiskCacheBytes, storageBudgetBytes)
         val imageOkHttpClient by lazy {
             val imageDispatcher = okhttp3.Dispatcher().apply {
-                maxRequests = 32
-                maxRequestsPerHost = 16
+                // Avoid simultaneous image decode/network bursts on TV sticks with small heaps.
+                maxRequests = if (lowRamDevice) 16 else 32
+                maxRequestsPerHost = if (lowRamDevice) 8 else 16
             }
             OkHttpClient.Builder()
                 .dispatcher(imageDispatcher)
@@ -154,7 +167,7 @@ class NuvioApplication : Application(), SingletonImageLoader.Factory {
                 // Normal devices (>3GB): use 0.25 for snappy image loading.
                 // - allowHardware(false) keeps bitmaps on heap instead of GPU memory
                 val cachePercent = when {
-                    totalRamMb <= 2048 -> 0.15
+                    lowRamDevice || totalRamMb <= 2048 -> 0.15
                     totalRamMb <= 3072 -> 0.20
                     else -> 0.25
                 }
@@ -165,14 +178,15 @@ class NuvioApplication : Application(), SingletonImageLoader.Factory {
             .diskCache {
                 DiskCache.Builder()
                     .directory(cacheDir.resolve("image_cache").toOkioPath())
-                    .maxSizeBytes(200L * 1024 * 1024)
+                    // Scale the image cache down when the device has little free internal storage.
+                    .maxSizeBytes(maxImageDiskCacheBytes)
                     .build()
             }
             .crossfade(false)
             .precision(coil3.size.Precision.INEXACT)
             .allowHardware(false)
             .allowRgb565(imagePerformancePreferences.rgb565Enabled)
-            .bitmapFactoryMaxParallelism(4)
+            .bitmapFactoryMaxParallelism(if (lowRamDevice) 2 else 4)
             .build()
     }
 }

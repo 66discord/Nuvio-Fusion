@@ -78,6 +78,7 @@ import coil3.request.CachePolicy
 import coil3.request.crossfade
 import com.nuvio.tv.ui.util.localizedGenreLabel
 import com.nuvio.tv.ui.util.recompositionHighlighter
+import com.nuvio.tv.ui.util.LocalLowRamUiMode
 import com.nuvio.tv.domain.model.PLACEHOLDER_IMAGE_URL
 import com.nuvio.tv.ui.util.rememberLongPressKeyTracker
 import kotlinx.coroutines.delay
@@ -112,6 +113,7 @@ fun ContentCard(
     onLongPress: (() -> Unit)? = null,
     onClick: () -> Unit = {}
 ) {
+    val lowRamMode = LocalLowRamUiMode.current
     val cardShape = remember(posterCardStyle.cornerRadius) { RoundedCornerShape(posterCardStyle.cornerRadius) }
     val cardDepthStyle = LocalCardDepthStyle.current
     val globalLandscape = LocalLandscapePosterMode.current
@@ -268,7 +270,7 @@ fun ContentCard(
         val imageModel = remember(imageUrl, requestWidthPx, requestHeightPx, revalidationKey) {
             val builder = ImageRequest.Builder(context)
                 .data(imageUrl)
-                .crossfade(true)
+                .crossfade(!lowRamMode)
                 .memoryCacheKey("${imageUrl}_${requestWidthPx}x${requestHeightPx}_v$revalidationKey")
                 .size(width = requestWidthPx, height = requestHeightPx)
             if (revalidationKey > 0) {

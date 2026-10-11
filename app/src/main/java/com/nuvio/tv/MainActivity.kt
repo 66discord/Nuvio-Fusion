@@ -144,6 +144,7 @@ import com.nuvio.tv.core.auth.DeviceSessionRegistration
 import com.nuvio.tv.core.deeplink.DeepLinkHandler
 import com.nuvio.tv.core.deeplink.DeepLinkParser
 import com.nuvio.tv.core.player.PlayerWindowBackdrop
+import com.nuvio.tv.core.performance.DevicePerformanceProfile
 import com.nuvio.tv.core.profile.ProfileManager
 import com.nuvio.tv.core.sync.ProfileSyncService
 import com.nuvio.tv.core.sync.StartupSyncService
@@ -196,6 +197,7 @@ import com.nuvio.tv.ui.theme.ThemeColors
 import com.nuvio.tv.ui.theme.accentBrush
 import com.nuvio.tv.ui.theme.brandWordmarkResource
 import com.nuvio.tv.ui.util.LocalFastHorizontalNavigationEnabled
+import com.nuvio.tv.ui.util.LocalLowRamUiMode
 import com.nuvio.tv.ui.util.LocalRecompositionHighlighterEnabled
 import com.nuvio.tv.ui.util.rememberDrawerItemFocusRequesters
 import com.nuvio.tv.updater.UpdateViewModel
@@ -248,7 +250,7 @@ private data class MainUiPrefs(
     val experienceModeLoaded: Boolean = false,
     val addonSetupSkipped: Boolean = false,
     val sidebarCollapsed: Boolean = false,
-    val modernSidebarEnabled: Boolean = false,
+    val modernSidebarEnabled: Boolean = true,
     val modernSidebarBlurPref: Boolean = false,
     val discoverLocation: DiscoverLocation? = null,
     val smoothBringIntoViewEnabled: Boolean = true,
@@ -404,6 +406,7 @@ open class MainActivity : ComponentActivity() {
             val hasSeenAuthQrOnFirstLaunch by hasSeenAuthQrFlow.collectAsState(initial = null)
             val authState by authManager.authState.collectAsState()
             val context = LocalContext.current
+            val lowRamUiMode = remember(context) { DevicePerformanceProfile.isLowRamDevice(context) }
 
             LaunchedEffect(authSessionNoticeDataStore, context) {
                 authSessionNoticeDataStore.pendingNotice.collect { notice ->
@@ -617,6 +620,10 @@ open class MainActivity : ComponentActivity() {
                 }
                 val highlighterEnabled = BuildConfig.IS_DEBUG_BUILD && mainUiPrefs.composeHighlighterEnabled
                 com.nuvio.tv.ui.util.RecompositionHighlighterFlag.enabled = highlighterEnabled
+                val effectiveCardDepthStyle = remember(mainUiPrefs.cardDepthStyle, lowRamUiMode) {
+                    if (lowRamUiMode) mainUiPrefs.cardDepthStyle.copy(enabled = false)
+                    else mainUiPrefs.cardDepthStyle
+                }
                 val profileBgSelection = resolveProfileBackgroundSelection(
                     profile = activeProfile,
                     entitlements = mainUiPrefs.memberAccess.entitlements
@@ -696,8 +703,9 @@ open class MainActivity : ComponentActivity() {
                     LocalDensity provides clampedFontScaleDensity,
                     LocalBringIntoViewSpec provides bringIntoViewSpec,
                     LocalFastHorizontalNavigationEnabled provides mainUiPrefs.fastHorizontalNavigationEnabled,
+                    LocalLowRamUiMode provides lowRamUiMode,
                     LocalRecompositionHighlighterEnabled provides highlighterEnabled,
-                    LocalCardDepthStyle provides mainUiPrefs.cardDepthStyle,
+                    LocalCardDepthStyle provides effectiveCardDepthStyle,
                     LocalLandscapePosterMode provides mainUiPrefs.landscapePosterMode,
                     LocalAlwaysBackdropWithLogo provides mainUiPrefs.alwaysBackdropWithLogo,
                     LocalMemberAccess provides mainUiPrefs.memberAccess,
@@ -846,7 +854,9 @@ open class MainActivity : ComponentActivity() {
                     val sidebarCollapsed = mainUiPrefs.sidebarCollapsed
                     val modernSidebarEnabled = mainUiPrefs.modernSidebarEnabled
                     val modernSidebarBlurEnabled =
-                        mainUiPrefs.modernSidebarBlurPref && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S
+                        mainUiPrefs.modernSidebarBlurPref &&
+                            android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S &&
+                            !lowRamUiMode
                     val hideBuiltInHeadersForFloatingPill = modernSidebarEnabled && !sidebarCollapsed
 
                     val startDestination = when {

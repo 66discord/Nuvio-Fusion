@@ -938,9 +938,11 @@
     <string name="layout_classic">Visual Clássico</string>
     <string name="layout_grid">Visual em Grade</string>
     <string name="layout_modern">Visual Moderno</string>
+    <string name="layout_apple_tv">Estilo Apple TV</string>
     <string name="layout_classic_desc">Navegue horizontalmente por categorias.</string>
     <string name="layout_grid_desc">Navegue na vertical com destaque no topo.</string>
     <string name="layout_modern_desc">Use o destaque fixo e catálogo único para busca rápida.</string>
+    <string name="layout_apple_tv_desc">Destaques imersivos e fileiras panorâmicas com efeitos reduzidos para manter a fluidez em TV boxes antigas.</string>
     <string name="layout_section_home">Layout da Home</string>
     <string name="layout_section_home_desc">Escolha a estrutura e a fonte do destaque.</string>
     <string name="layout_landscape_posters">Pôsteres Horizontais</string>

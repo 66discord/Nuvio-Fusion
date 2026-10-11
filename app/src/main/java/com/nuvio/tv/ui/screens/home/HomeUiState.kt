@@ -24,7 +24,7 @@ data class HomeUiState(
     val error: String? = null,
     val selectedItemId: String? = null,
     val installedAddonsCount: Int = 0,
-    val homeLayout: HomeLayout = HomeLayout.MODERN,
+    val homeLayout: HomeLayout = HomeLayout.APPLE_TV,
     val modernLandscapePostersEnabled: Boolean = false,
     val alwaysShowLandscapeClearlogo: Boolean = false,
     val modernHeroFullScreenBackdropEnabled: Boolean = false,

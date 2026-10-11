@@ -45,8 +45,10 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalConfiguration
 import com.nuvio.tv.ui.util.dpadVerticalFastScroll
 import com.nuvio.tv.ui.util.asStable
+import com.nuvio.tv.ui.util.LocalLowRamUiMode
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import com.nuvio.tv.domain.model.MetaPreview
@@ -109,25 +111,38 @@ fun ClassicHomeContent(
     onSaveFocusState: (Int, Int, String?, Map<String, String>, Map<String, Int>, Map<String, String>, Int, Int) -> Unit,
     onFocusedRowKeyChanged: (String?) -> Unit = {},
     scrollToTopTrigger: Int = 0,
-    onRequestLazyCatalogLoad: (String) -> Unit = {}
+    onRequestLazyCatalogLoad: (String) -> Unit = {},
+    appleTvStyle: Boolean = false
 ) {
+    val lowRamMode = LocalLowRamUiMode.current
+    val configuration = LocalConfiguration.current
     val defaultBringIntoViewSpec = LocalBringIntoViewSpec.current
     val density = LocalDensity.current
-    val classicCatalogPosterCardStyle = remember(posterCardStyle) {
+    val catalogPosterScale = if (appleTvStyle) 1.22f else CLASSIC_CATALOG_POSTER_SCALE
+    val secondaryPosterScale = if (appleTvStyle) 1.08f else CLASSIC_SECONDARY_ROW_POSTER_SCALE
+    val classicCatalogPosterCardStyle = remember(posterCardStyle, appleTvStyle, catalogPosterScale, lowRamMode) {
         posterCardStyle.copy(
-            width = posterCardStyle.width * CLASSIC_CATALOG_POSTER_SCALE,
-            height = posterCardStyle.height * CLASSIC_CATALOG_POSTER_SCALE
+            width = posterCardStyle.width * catalogPosterScale,
+            height = posterCardStyle.height * catalogPosterScale,
+            cornerRadius = if (appleTvStyle) 16.dp else posterCardStyle.cornerRadius,
+            focusedScale = if (appleTvStyle) {
+                if (lowRamMode) 1.03f else 1.05f
+            } else {
+                posterCardStyle.focusedScale
+            }
         )
     }
-    val classicSecondaryPosterCardStyle = remember(posterCardStyle) {
+    val classicSecondaryPosterCardStyle = remember(posterCardStyle, appleTvStyle, secondaryPosterScale) {
         posterCardStyle.copy(
-            width = posterCardStyle.width * CLASSIC_SECONDARY_ROW_POSTER_SCALE,
-            height = posterCardStyle.height * CLASSIC_SECONDARY_ROW_POSTER_SCALE
+            width = posterCardStyle.width * secondaryPosterScale,
+            height = posterCardStyle.height * secondaryPosterScale,
+            cornerRadius = if (appleTvStyle) 16.dp else posterCardStyle.cornerRadius,
+            focusedScale = if (appleTvStyle) 1.04f else posterCardStyle.focusedScale
         )
     }
     val classicLandscapeCatalogWidth = classicCatalogPosterCardStyle.height
     val classicLandscapeCatalogHeight = classicLandscapeCatalogWidth / (16f / 9f)
-    val globalLandscape = LocalLandscapePosterMode.current
+    val globalLandscape = LocalLandscapePosterMode.current || appleTvStyle
     val classicContinueWatchingCardWidth = remember(classicCatalogPosterCardStyle, classicSecondaryPosterCardStyle, uiState.continueWatchingCardStyle, globalLandscape) {
         when (uiState.continueWatchingCardStyle) {
             ContinueWatchingCardStyle.POSTER -> if (globalLandscape) classicLandscapeCatalogWidth else classicCatalogPosterCardStyle.width
@@ -152,7 +167,9 @@ fun ClassicHomeContent(
     // Nested prefetch: when LazyColumn prefetches a row ahead of scrolling,
     // pre-compose up to 2 ContentCards in its nested LazyRow across multiple frames.
     // This spreads the composition work and prevents frame spikes when a new row scrolls in.
-    val nestedPrefetchStrategy = remember { LazyListPrefetchStrategy(nestedPrefetchItemCount = 2) }
+    val nestedPrefetchStrategy = remember(lowRamMode) {
+        LazyListPrefetchStrategy(nestedPrefetchItemCount = if (lowRamMode) 1 else 2)
+    }
 
     val scope = rememberCoroutineScope()
     val columnListState = rememberLazyListState(
@@ -370,7 +387,9 @@ fun ClassicHomeContent(
 
     // Track focused catalog item for trailer preview requests (mirrors ModernHomeContent behavior).
     var focusedCatalogItem by remember { mutableStateOf<MetaPreview?>(null) }
-    if (uiState.focusedPosterBackdropTrailerEnabled) {
+    val focusedBackdropExpandEnabled = uiState.focusedPosterBackdropExpandEnabled && !lowRamMode
+    val focusedBackdropTrailerEnabled = uiState.focusedPosterBackdropTrailerEnabled && !lowRamMode
+    if (focusedBackdropTrailerEnabled) {
         LaunchedEffect(focusedCatalogItem) {
             val item = focusedCatalogItem ?: return@LaunchedEffect
             if (trailerPreviewUrls.containsKey(item.id)) return@LaunchedEffect
@@ -380,12 +399,12 @@ fun ClassicHomeContent(
         }
     }
 
-    val handleMetaFocus: (MetaPreview) -> Unit = remember(uiState.classicFocusGradientEnabled, uiState.focusedPosterBackdropExpandEnabled, uiState.focusedPosterBackdropTrailerEnabled, globalLandscape) {
+    val handleMetaFocus: (MetaPreview) -> Unit = remember(uiState.classicFocusGradientEnabled, focusedBackdropExpandEnabled, focusedBackdropTrailerEnabled, globalLandscape) {
         { item ->
-            if (uiState.classicFocusGradientEnabled) {
-                focusedArtwork = item.toClassicFocusArtwork(uiState.focusedPosterBackdropExpandEnabled, useLandscape = globalLandscape)
+            if (uiState.classicFocusGradientEnabled && !appleTvStyle) {
+                focusedArtwork = item.toClassicFocusArtwork(focusedBackdropExpandEnabled, useLandscape = globalLandscape)
             }
-            if (uiState.focusedPosterBackdropTrailerEnabled) {
+            if (focusedBackdropTrailerEnabled) {
                 focusedCatalogItem = item
             }
             latestOnItemFocus(item)
@@ -477,11 +496,12 @@ fun ClassicHomeContent(
     val catalogFocusBackdropVisible = remember(immersiveBackdropAlpha) {
         derivedStateOf { immersiveBackdropAlpha.value <= 0f }
     }
-    val immersiveBackdropVisible = remember(immersiveBackdropAlpha) {
-        derivedStateOf { immersiveBackdropAlpha.value > 0f }
+    val immersiveBackdropVisible = remember(immersiveBackdropAlpha, lowRamMode) {
+        derivedStateOf { !lowRamMode && immersiveBackdropAlpha.value > 0f }
     }
     val backgroundColor = NuvioTheme.colors.Background
     CompositionLocalProvider(
+        LocalLandscapePosterMode provides globalLandscape,
         LocalBringIntoViewSpec provides verticalBringIntoViewSpec,
         LocalFastScrollActive provides isFastScrollingState,
         LocalVerticalRowsScrolling provides isVerticalScrollingState
@@ -491,7 +511,7 @@ fun ClassicHomeContent(
             .fillMaxSize()
             .background(backgroundColor)
     ) {
-    if (heroVisible) {
+    if (heroVisible && !lowRamMode) {
         activeHeroItem?.let { item ->
             Box(
                 modifier = Modifier
@@ -522,7 +542,7 @@ fun ClassicHomeContent(
     )
     ClassicFocusGradientBackdrop(
         artworkProvider = { focusedArtwork },
-        enabled = uiState.classicFocusGradientEnabled,
+        enabled = uiState.classicFocusGradientEnabled && !appleTvStyle && !lowRamMode,
         visibleProvider = { catalogFocusBackdropVisible.value },
         updatesPausedProvider = { isVerticalScrollingState.value },
         modifier = Modifier.fillMaxSize()
@@ -603,12 +623,20 @@ fun ClassicHomeContent(
                     showImdbRatings = uiState.homeImdbRatingsVisibility.showRatings,
                     mdbListShowOnHero = uiState.mdbListShowOnHero,
                     mdbListRatingOrder = uiState.mdbListRatingOrder,
+                    heroHeight = if (appleTvStyle) {
+                        (configuration.screenHeightDp * 0.46f).coerceIn(300f, 460f).dp
+                    } else {
+                        400.dp
+                    },
+                    autoAdvanceEnabled = !lowRamMode,
                     onActiveItemChanged = { item ->
                         activeHeroItem = item
                         val idx = uiState.heroItems.indexOfFirst { it.id == item.id }
                         if (idx >= 0) savedHeroIndex.intValue = idx
                     },
-                    showBackdrop = false,
+                    // On small heaps render the hero art only inside the banner instead of a
+                    // full-screen backdrop. This cuts the decoded bitmap and GPU surface size.
+                    showBackdrop = lowRamMode,
                     onItemFocus = handleHeroFocus,
                     initialActiveIndex = savedHeroIndex.intValue,
                     onItemClick = { item ->
@@ -693,7 +721,7 @@ fun ClassicHomeContent(
                                 ?.toClassicFocusArtwork(uiState.focusedPosterBackdropExpandEnabled)
                         }
                     },
-                    blurUnwatchedEpisodes = uiState.blurUnwatchedEpisodes,
+                    blurUnwatchedEpisodes = uiState.blurUnwatchedEpisodes && !lowRamMode,
                     useEpisodeThumbnails = uiState.useEpisodeThumbnailsInCw,
                     focusRequesters = cwItemFocusRequesters,
                     rowFocusRequester = cwRowFocusRequester,
@@ -763,7 +791,7 @@ fun ClassicHomeContent(
                         val isNextUp = item is ContinueWatchingItem.NextUp
                         onRemoveContinueWatching(contentId, season, episode, isNextUp)
                     },
-                    blurUnwatchedEpisodes = uiState.blurUnwatchedEpisodes,
+                    blurUnwatchedEpisodes = uiState.blurUnwatchedEpisodes && !lowRamMode,
                     useEpisodeThumbnails = uiState.useEpisodeThumbnailsInCw,
                     focusRequesters = upcomingItemFocusRequesters,
                     rowFocusRequester = upcomingRowFocusRequester,
@@ -851,9 +879,9 @@ fun ClassicHomeContent(
                         showImdbRatings = uiState.homeImdbRatingsVisibility.showRatings,
                         showAddonName = uiState.catalogAddonNameEnabled,
                         showCatalogTypeSuffix = uiState.catalogTypeSuffixEnabled,
-                        focusedPosterBackdropExpandEnabled = uiState.focusedPosterBackdropExpandEnabled,
+                        focusedPosterBackdropExpandEnabled = focusedBackdropExpandEnabled,
                         focusedPosterBackdropExpandDelaySeconds = uiState.focusedPosterBackdropExpandDelaySeconds,
-                        focusedPosterBackdropTrailerEnabled = uiState.focusedPosterBackdropTrailerEnabled,
+                        focusedPosterBackdropTrailerEnabled = focusedBackdropTrailerEnabled,
                         focusedPosterBackdropTrailerMuted = uiState.focusedPosterBackdropTrailerMuted,
                         trailerPreviewUrls = stableTrailerPreviewUrls.value,
                         trailerPreviewAudioUrls = stableTrailerPreviewAudioUrls.value,

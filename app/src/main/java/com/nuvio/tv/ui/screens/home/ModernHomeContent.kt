@@ -82,6 +82,7 @@ import com.nuvio.tv.ui.components.ContinueWatchingOptionsDialog
 import com.nuvio.tv.LocalSidebarExpanded
 import com.nuvio.tv.LocalContentFocusRequester
 import com.nuvio.tv.ui.util.LocalRecompositionHighlighterEnabled
+import com.nuvio.tv.ui.util.LocalLowRamUiMode
 import com.nuvio.tv.ui.util.StableList
 import com.nuvio.tv.ui.util.StableRef
 import com.nuvio.tv.ui.util.asStable
@@ -145,23 +146,27 @@ fun ModernHomeContent(
 ) {
     val onRowItemFocusedPassedDown = rememberUpdatedState(onRowItemFocusedCallback)
     val defaultBringIntoViewSpec = LocalBringIntoViewSpec.current
+    val lowRamMode = LocalLowRamUiMode.current
     val sidebarExpanded = LocalSidebarExpanded.current
     val isSidebarExpanded = remember(sidebarExpanded) { derivedStateOf { sidebarExpanded } }
     val lifecycleOwner = LocalLifecycleOwner.current
     val useLandscapePosters = uiState.modernLandscapePostersEnabled
     val alwaysShowLandscapeClearlogo = uiState.alwaysShowLandscapeClearlogo
-    val fullScreenBackdrop = uiState.modernHeroFullScreenBackdropEnabled
+    val fullScreenBackdrop = uiState.modernHeroFullScreenBackdropEnabled && !lowRamMode
     val trailerPlaybackTarget = uiState.focusedPosterBackdropTrailerPlaybackTarget
     val effectiveAutoplayEnabled =
-        uiState.focusedPosterBackdropTrailerEnabled &&
+        !lowRamMode &&
+            uiState.focusedPosterBackdropTrailerEnabled &&
             (useLandscapePosters || uiState.focusedPosterBackdropExpandEnabled)
     val landscapeExpandedCardMode =
         useLandscapePosters &&
             effectiveAutoplayEnabled &&
             trailerPlaybackTarget == FocusedPosterTrailerPlaybackTarget.EXPANDED_CARD
     val effectiveExpandEnabled =
-        (uiState.focusedPosterBackdropExpandEnabled && !useLandscapePosters) ||
-            landscapeExpandedCardMode
+        !lowRamMode && (
+            (uiState.focusedPosterBackdropExpandEnabled && !useLandscapePosters) ||
+                landscapeExpandedCardMode
+        )
     val shouldActivateFocusedPosterFlow =
         effectiveExpandEnabled ||
             (effectiveAutoplayEnabled &&
@@ -1194,7 +1199,7 @@ fun ModernHomeContent(
                 landscapeCatalogCardHeight = landscapeCatalogCardHeight,
                 continueWatchingCardWidth = continueWatchingCardWidth,
                 continueWatchingCardHeight = continueWatchingCardHeight,
-                blurUnwatchedEpisodes = uiState.blurUnwatchedEpisodes,
+                blurUnwatchedEpisodes = uiState.blurUnwatchedEpisodes && !lowRamMode,
                 useEpisodeThumbnails = uiState.useEpisodeThumbnailsInCw,
                 continueWatchingCardStyle = continueWatchingStyle,
                 continueWatchingCornerRadius = uiState.posterCardCornerRadiusDp.dp,

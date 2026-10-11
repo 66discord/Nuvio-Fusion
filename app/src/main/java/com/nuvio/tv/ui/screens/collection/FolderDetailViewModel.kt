@@ -64,7 +64,7 @@ data class FolderDetailUiState(
     val folder: CollectionFolder? = null,
     val collectionTitle: String = "",
     val viewMode: FolderViewMode = FolderViewMode.TABBED_GRID,
-    val homeLayout: HomeLayout = HomeLayout.MODERN,
+    val homeLayout: HomeLayout = HomeLayout.APPLE_TV,
     val homeImdbRatingsVisibility: HomeImdbRatingsVisibility = HomeImdbRatingsVisibility.SHOW_ALL,
     val posterLabelsEnabled: Boolean = true,
     val catalogAddonNameEnabled: Boolean = true,
@@ -107,6 +107,9 @@ data class FolderDetailGridFocusState(
     val focusedItemKey: String? = null,
     val hasSavedFocus: Boolean = false
 )
+
+private fun HomeLayout.supportsRowLayout(): Boolean =
+    this == HomeLayout.MODERN || this == HomeLayout.CLASSIC || this == HomeLayout.APPLE_TV
 
 @HiltViewModel
 class FolderDetailViewModel @Inject constructor(
@@ -267,8 +270,7 @@ class FolderDetailViewModel @Inject constructor(
             val showAll = (collection?.showAllTab ?: true) && folder.sources.size >= 2
 
             val viewMode = collection?.viewMode ?: FolderViewMode.TABBED_GRID
-            val useShimmerPlaceholders = viewMode == FolderViewMode.FOLLOW_LAYOUT &&
-                (homeLayout == HomeLayout.MODERN || homeLayout == HomeLayout.CLASSIC)
+            val useShimmerPlaceholders = viewMode == FolderViewMode.FOLLOW_LAYOUT && homeLayout.supportsRowLayout()
 
             val sourceTabs = folder.sources.map { source ->
                 val (name, typeLabel, rawType) = when (source) {
@@ -440,9 +442,9 @@ class FolderDetailViewModel @Inject constructor(
         if (state.viewMode != FolderViewMode.FOLLOW_LAYOUT) return
         val sourceTabs = state.tabs.filter { !it.isAllTab }
         val loadedRows = sourceTabs.mapNotNull { it.catalogRow }
-        val useShimmer = state.homeLayout == HomeLayout.MODERN || state.homeLayout == HomeLayout.CLASSIC
+        val useShimmer = state.homeLayout.supportsRowLayout()
 
-        // Build rows including placeholder shimmer rows for tabs still loading (Modern/Classic)
+        // Build rows with placeholders for any row-based layout while tabs are still loading.
         val allRows = if (useShimmer) {
             sourceTabs.map { tab ->
                 if (tab.catalogRow != null) {

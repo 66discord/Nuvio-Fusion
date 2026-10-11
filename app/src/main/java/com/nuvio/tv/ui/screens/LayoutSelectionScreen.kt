@@ -45,6 +45,7 @@ import androidx.tv.material3.Icon
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import com.nuvio.tv.domain.model.HomeLayout
+import com.nuvio.tv.ui.components.AppleTvLayoutPreview
 import com.nuvio.tv.ui.components.ClassicLayoutPreview
 import com.nuvio.tv.ui.components.GridLayoutPreview
 import com.nuvio.tv.ui.components.ModernLayoutPreview
@@ -59,7 +60,7 @@ fun LayoutSelectionScreen(
     onContinue: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    var selectedLayout by remember { mutableStateOf(HomeLayout.MODERN) }
+    var selectedLayout by remember { mutableStateOf(HomeLayout.APPLE_TV) }
     val continueFocusRequester = remember { FocusRequester() }
 
     LaunchedEffect(uiState.selectedLayout) {
@@ -104,6 +105,13 @@ fun LayoutSelectionScreen(
                     .weight(1f),
                 horizontalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.xxl, Alignment.CenterHorizontally)
             ) {
+                LayoutOptionCard(
+                    layout = HomeLayout.APPLE_TV,
+                    isSelected = selectedLayout == HomeLayout.APPLE_TV,
+                    onSelect = { selectedLayout = HomeLayout.APPLE_TV },
+                    modifier = Modifier.weight(1f)
+                )
+
                 LayoutOptionCard(
                     layout = HomeLayout.MODERN,
                     isSelected = selectedLayout == HomeLayout.MODERN,
@@ -208,6 +216,9 @@ private fun LayoutOptionCard(
                         .height(200.dp)
                 ) {
                     when (layout) {
+                        HomeLayout.APPLE_TV -> AppleTvLayoutPreview(
+                            modifier = Modifier.fillMaxSize()
+                        )
                         HomeLayout.CLASSIC -> ClassicLayoutPreview(
                             modifier = Modifier.fillMaxSize()
                         )
@@ -224,6 +235,7 @@ private fun LayoutOptionCard(
 
                 Text(
                     text = when (layout) {
+                        HomeLayout.APPLE_TV -> stringResource(R.string.layout_apple_tv)
                         HomeLayout.CLASSIC -> stringResource(R.string.layout_classic)
                         HomeLayout.GRID -> stringResource(R.string.layout_grid)
                         HomeLayout.MODERN -> stringResource(R.string.layout_modern)
@@ -236,6 +248,7 @@ private fun LayoutOptionCard(
 
             Text(
                 text = when (layout) {
+                    HomeLayout.APPLE_TV -> stringResource(R.string.layout_apple_tv_desc)
                     HomeLayout.CLASSIC -> stringResource(R.string.layout_classic_desc)
                     HomeLayout.GRID -> stringResource(R.string.layout_grid_desc)
                     HomeLayout.MODERN -> stringResource(R.string.layout_modern_desc)

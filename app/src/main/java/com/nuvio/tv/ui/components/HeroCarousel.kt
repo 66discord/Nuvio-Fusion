@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.key
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -70,6 +71,7 @@ import com.nuvio.tv.domain.model.MetaPreview
 import com.nuvio.tv.ui.util.contentTextDirection
 import com.nuvio.tv.ui.util.formatHeroRuntime
 import com.nuvio.tv.ui.util.LocalRecompositionHighlighterEnabled
+import com.nuvio.tv.ui.util.LocalLowRamUiMode
 import com.nuvio.tv.ui.util.localizedContentType
 import com.nuvio.tv.ui.util.localizedGenreLabel
 import kotlinx.coroutines.delay
@@ -88,6 +90,8 @@ fun HeroCarousel(
     showImdbRatings: Boolean = true,
     showBackdrop: Boolean = true,
     fullWidth: Dp = Dp.Unspecified,
+    heroHeight: Dp = 400.dp,
+    autoAdvanceEnabled: Boolean = true,
     initialActiveIndex: Int = 0,
     mdbListShowOnHero: Boolean = false,
     mdbListRatingOrder: List<String> = com.nuvio.tv.domain.model.MDBListSettings.DEFAULT_RATING_ORDER,
@@ -96,6 +100,7 @@ fun HeroCarousel(
     if (items.isEmpty()) return
 
     val currentOnItemClick by rememberUpdatedState(onItemClick)
+    val reduceEffects = LocalLowRamUiMode.current
     val currentOnItemFocus by rememberUpdatedState(onItemFocus)
     val currentOnActiveItemChanged by rememberUpdatedState(onActiveItemChanged)
     var activeIndex by remember { mutableIntStateOf(initialActiveIndex.coerceIn(0, (items.size - 1).coerceAtLeast(0))) }
@@ -112,8 +117,8 @@ fun HeroCarousel(
     }
 
     // Auto-advance when not focused — delay first advance to 20s so initial GPU load settles
-    LaunchedEffect(isFocused, items.size) {
-        if (items.size <= 1) return@LaunchedEffect
+    LaunchedEffect(isFocused, items.size, autoAdvanceEnabled, reduceEffects) {
+        if (!autoAdvanceEnabled || reduceEffects || items.size <= 1) return@LaunchedEffect
         delay(AUTO_ADVANCE_INTERVAL_MS * 2) // 20s before first advance
         while (true) {
             delay(AUTO_ADVANCE_INTERVAL_MS)
@@ -131,7 +136,7 @@ fun HeroCarousel(
                 else
                     Modifier.fillMaxWidth()
             )
-            .height(400.dp)
+            .height(heroHeight)
             .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
             .onFocusChanged {
                 isFocused = it.hasFocus || it.isFocused
@@ -166,20 +171,35 @@ fun HeroCarousel(
                 }
             }
     ) {
-        // Crossfade between slides
-        Crossfade(
-            targetState = activeIndex,
-            animationSpec = tween(300),
-            label = "heroSlide"
-        ) { index ->
-            val item = items.getOrNull(index) ?: return@Crossfade
-            HeroCarouselSlide(
-                item = item,
-                showImdbRatings = showImdbRatings,
-                showBackdrop = showBackdrop,
-                mdbListShowOnHero = mdbListShowOnHero,
-                mdbListRatingOrder = mdbListRatingOrder
-            )
+        // Skip overlapping slide layers and their crossfade on low-memory TV boxes.
+        if (reduceEffects) {
+            items.getOrNull(activeIndex)?.let { item ->
+                key(item.id) {
+                    HeroCarouselSlide(
+                        item = item,
+                        showImdbRatings = showImdbRatings,
+                        showBackdrop = showBackdrop,
+                        mdbListShowOnHero = mdbListShowOnHero,
+                        mdbListRatingOrder = mdbListRatingOrder,
+                        reduceEffects = true
+                    )
+                }
+            }
+        } else {
+            Crossfade(
+                targetState = activeIndex,
+                animationSpec = tween(300),
+                label = "heroSlide"
+            ) { index ->
+                val item = items.getOrNull(index) ?: return@Crossfade
+                HeroCarouselSlide(
+                    item = item,
+                    showImdbRatings = showImdbRatings,
+                    showBackdrop = showBackdrop,
+                    mdbListShowOnHero = mdbListShowOnHero,
+                    mdbListRatingOrder = mdbListRatingOrder
+                )
+            }
         }
 
         // Indicator dots — optimized to minimize recompositions and layout passes
@@ -226,7 +246,8 @@ private fun HeroCarouselSlide(
     showImdbRatings: Boolean,
     showBackdrop: Boolean,
     mdbListShowOnHero: Boolean = false,
-    mdbListRatingOrder: List<String> = com.nuvio.tv.domain.model.MDBListSettings.DEFAULT_RATING_ORDER
+    mdbListRatingOrder: List<String> = com.nuvio.tv.domain.model.MDBListSettings.DEFAULT_RATING_ORDER,
+    reduceEffects: Boolean = false
 ) {
     val highlighterEnabled = LocalRecompositionHighlighterEnabled.current
     val context = LocalContext.current
@@ -240,7 +261,7 @@ private fun HeroCarouselSlide(
         item.logo?.let {
             ImageRequest.Builder(context)
                 .data(it)
-                .crossfade(true)
+                .crossfade(!reduceEffects)
                 .size(width = logoRequestWidthPx, height = logoRequestHeightPx)
                 .build()
         }
@@ -282,6 +303,7 @@ private fun HeroCarouselSlide(
             HeroCarouselBackdrop(
                 item = item,
                 fullPage = false,
+                reduceEffects = reduceEffects,
                 modifier = Modifier.fillMaxSize()
             )
         }
@@ -416,17 +438,20 @@ private fun HeroCarouselMetaDivider() {
 internal fun HeroCarouselBackdrop(
     item: MetaPreview,
     fullPage: Boolean,
+    reduceEffects: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current
     val configuration = LocalConfiguration.current
-    val requestWidthPx = remember(configuration.screenWidthDp, density) {
-        with(density) { configuration.screenWidthDp.dp.roundToPx() }.coerceAtLeast(1)
+    val requestWidthPx = remember(configuration.screenWidthDp, density, reduceEffects) {
+        val widthPx = with(density) { configuration.screenWidthDp.dp.roundToPx() }.coerceAtLeast(1)
+        widthPx.coerceAtMost(if (reduceEffects) 1280 else 1920)
     }
-    val requestHeightPx = remember(configuration.screenHeightDp, density, fullPage) {
+    val requestHeightPx = remember(configuration.screenHeightDp, density, fullPage, reduceEffects) {
         val height = if (fullPage) configuration.screenHeightDp.dp else 400.dp
-        with(density) { height.roundToPx() }.coerceAtLeast(1)
+        val heightPx = with(density) { height.roundToPx() }.coerceAtLeast(1)
+        heightPx.coerceAtMost(if (reduceEffects) 720 else 1080)
     }
     val backdropUrl = item.backdropUrl
     val backgroundModel = remember(context, backdropUrl, requestWidthPx, requestHeightPx, fullPage) {
@@ -445,9 +470,11 @@ internal fun HeroCarouselBackdrop(
 
     Box(
         modifier = modifier
-            .graphicsLayer {
-                compositingStrategy = CompositingStrategy.Offscreen
-            }
+            .then(
+                if (reduceEffects) Modifier else Modifier.graphicsLayer {
+                    compositingStrategy = CompositingStrategy.Offscreen
+                }
+            )
             .drawWithCache {
             val bottomStartFraction = if (fullPage) 0.55f else 0.30f
             val leftEndFraction = if (fullPage) 0.66f else 0.72f

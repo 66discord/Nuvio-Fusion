@@ -80,6 +80,7 @@ import coil3.request.crossfade
 import kotlin.math.roundToInt
 import java.util.concurrent.TimeUnit
 import com.nuvio.tv.ui.util.recompositionHighlighter
+import com.nuvio.tv.ui.util.LocalLowRamUiMode
 import com.nuvio.tv.ui.util.localizeEpisodeTitle
 import com.nuvio.tv.ui.util.rememberLongPressKeyTracker
 import com.nuvio.tv.ui.util.computeAirDateBadgeText
@@ -448,6 +449,7 @@ fun ContinueWatchingCard(
     cornerRadius: Dp = NuvioTheme.radii.md,
     posterTitleOverride: TextStyle? = null
 ) {
+    val lowRamMode = LocalLowRamUiMode.current
     val isPosterStyle = cardStyle == ContinueWatchingCardStyle.POSTER
     val isWideStyle = cardStyle == ContinueWatchingCardStyle.WIDE
     val effectiveEpisodeThumbnails =
@@ -588,7 +590,7 @@ fun ContinueWatchingCard(
     val imageRequest = remember(effectiveImageModel, requestWidthPx, requestHeightPx, shouldBlur) {
         val builder = ImageRequest.Builder(context)
             .data(effectiveImageModel)
-            .crossfade(true)
+            .crossfade(!lowRamMode)
             .memoryCacheKey(
                 continueWatchingImageCacheKey(
                     effectiveImageModel, requestWidthPx, requestHeightPx, shouldBlur

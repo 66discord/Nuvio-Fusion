@@ -42,6 +42,7 @@ import com.nuvio.tv.R
 import com.nuvio.tv.domain.model.DiscoverLocation
 import com.nuvio.tv.domain.model.HomeImdbRatingsVisibility
 import com.nuvio.tv.domain.model.HomeLayout
+import com.nuvio.tv.ui.components.AppleTvLayoutPreview
 import com.nuvio.tv.ui.components.ClassicLayoutPreview
 import com.nuvio.tv.ui.components.GridLayoutPreview
 import com.nuvio.tv.ui.components.ModernLayoutPreview
@@ -58,7 +59,7 @@ internal fun LayoutHomeLayoutSection(
             .settingsOptionRow(firstHomeLayoutFocusRequester),
         horizontalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.md)
     ) {
-        listOf(HomeLayout.MODERN, HomeLayout.GRID, HomeLayout.CLASSIC).forEachIndexed { index, layout ->
+        listOf(HomeLayout.APPLE_TV, HomeLayout.MODERN, HomeLayout.GRID, HomeLayout.CLASSIC).forEachIndexed { index, layout ->
             LayoutCard(
                 layout = layout,
                 isSelected = uiState.selectedLayout == layout,
@@ -276,6 +277,9 @@ private fun LayoutCard(
                     .height(112.dp)
             ) {
                 when (layout) {
+                    HomeLayout.APPLE_TV -> AppleTvLayoutPreview(
+                        modifier = Modifier.fillMaxSize()
+                    )
                     HomeLayout.CLASSIC -> ClassicLayoutPreview(
                         modifier = Modifier.fillMaxWidth(),
                         animated = animatePreview
@@ -309,6 +313,7 @@ private fun LayoutCard(
                 }
                 Text(
                     text = when (layout) {
+                        HomeLayout.APPLE_TV -> stringResource(R.string.layout_apple_tv)
                         HomeLayout.CLASSIC -> stringResource(R.string.layout_classic)
                         HomeLayout.GRID -> stringResource(R.string.layout_grid)
                         HomeLayout.MODERN -> stringResource(R.string.layout_modern)

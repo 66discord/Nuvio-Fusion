@@ -51,6 +51,7 @@ import com.nuvio.tv.domain.model.localizedMembershipTitle
 import com.nuvio.tv.domain.model.LibrarySourceMode
 import com.nuvio.tv.domain.model.MetaPreview
 import com.nuvio.tv.ui.components.ErrorState
+import com.nuvio.tv.ui.util.LocalLowRamUiMode
 import com.nuvio.tv.ui.components.LoadingIndicator
 import com.nuvio.tv.ui.components.LocalStartupLoadingState
 import com.nuvio.tv.ui.components.LocalStartupSplashEnabled
@@ -243,6 +244,7 @@ fun HomeScreen(
     // Reports the home screen as fully drawn once it leaves the loading state so startup timing is measurable and post-launch work can be deferred.
     ReportDrawnWhen { !showStartupLoader }
 
+    val lowRamUiMode = LocalLowRamUiMode.current
     val startupLoadingState = LocalStartupLoadingState.current
     val showHomeLoader = shouldShowHomeStartupLoader(
         loading = showStartupLoader,
@@ -354,7 +356,7 @@ fun HomeScreen(
                     }
                     AnimatedVisibility(
                         visible = showHomeContentWithAnimation,
-                        enter = if (hasShownInitialHomeContent) {
+                        enter = if (hasShownInitialHomeContent || lowRamUiMode) {
                             EnterTransition.None
                         } else {
                             fadeIn(animationSpec = tween(320)) +
@@ -365,7 +367,7 @@ fun HomeScreen(
                         }
                     ) {
                         when (uiState.homeLayout) {
-                            HomeLayout.CLASSIC -> ClassicHomeRoute(
+                            HomeLayout.CLASSIC, HomeLayout.APPLE_TV -> ClassicHomeRoute(
                                 viewModel = viewModel,
                                 uiState = uiState,
                                 posterCardStyle = posterCardStyle,
@@ -377,7 +379,8 @@ fun HomeScreen(
                                 onNavigateToCatalogSeeAll = onNavigateToCatalogSeeAllStable,
                                 onNavigateToFolderDetail = onNavigateToFolderDetailStable,
                                 isCatalogItemWatched = isCatalogItemWatched,
-                                onCatalogItemLongPress = onCatalogItemLongPress
+                                onCatalogItemLongPress = onCatalogItemLongPress,
+                                appleTvStyle = uiState.homeLayout == HomeLayout.APPLE_TV
                             )
 
                             HomeLayout.GRID -> GridHomeRoute(
@@ -533,7 +536,8 @@ private fun ClassicHomeRoute(
     onNavigateToCatalogSeeAll: (String, String, String) -> Unit,
     onNavigateToFolderDetail: (String, String) -> Unit = { _, _ -> },
     isCatalogItemWatched: (MetaPreview) -> Boolean,
-    onCatalogItemLongPress: (MetaPreview, String) -> Unit
+    onCatalogItemLongPress: (MetaPreview, String) -> Unit,
+    appleTvStyle: Boolean = false
 ) {
     val focusState by viewModel.focusState.collectAsStateWithLifecycle()
     val scrollToTopTrigger by viewModel.scrollToTopTrigger.collectAsStateWithLifecycle()
@@ -541,6 +545,7 @@ private fun ClassicHomeRoute(
         uiState = uiState,
         posterCardStyle = posterCardStyle,
         focusState = focusState,
+        appleTvStyle = appleTvStyle,
         scrollToTopTrigger = scrollToTopTrigger,
         trailerPreviewUrls = viewModel.trailerPreviewUrls,
         trailerPreviewAudioUrls = viewModel.trailerPreviewAudioUrls,

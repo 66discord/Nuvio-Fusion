@@ -745,9 +745,11 @@
     <string name="layout_classic">Vista Clássica</string>
     <string name="layout_grid">Vista em Grelha</string>
     <string name="layout_modern">Vista Moderna</string>
+    <string name="layout_apple_tv">Estilo Apple TV</string>
     <string name="layout_classic_desc">Deslocar pelas categorias horizontalmente</string>
     <string name="layout_grid_desc">Navegar por tudo numa grelha vertical com uma secção de destaque</string>
     <string name="layout_modern_desc">Destaque fixo com uma única linha ativa para uma navegação mais rápida</string>
+    <string name="layout_apple_tv_desc">Destaques imersivos e filas panorâmicas com efeitos reduzidos para manter a fluidez em boxes de TV antigos.</string>
     <string name="layout_section_home">Esquema Inicial</string>
     <string name="layout_section_home_desc">Escolhe a estrutura e a fonte do destaque.</string>
     <string name="layout_landscape_posters">Cartazes em paisagem</string>
